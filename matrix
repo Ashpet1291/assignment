@@ -1,0 +1,481 @@
+#!/bin/bash
+
+#function which displays how many rows by columns in a matrix displayed as "x y"
+dims() {
+setWidth
+setRows
+#output the dimensions
+writeDimenisons
+return 0
+}
+
+#write dimensions for dims
+writeDimenisons()
+{
+#get width and height from files
+while IFS= read -r line;
+do
+  tempStr=$line;
+done < stdWidth
+
+while IFS= read -r line2
+do
+  #place dims in tmp file to grab
+  echo "$line2" "$tempStr" >stdim
+done < stdHeight
+#get dimensions and display them
+displayLine=$(head -n 1 stdim)
+printf "%s %s\n" $displayLine
+}
+
+#transpose a matrix
+transpose() {
+#one arg
+datafilepath=$1
+
+local colcount
+local rws
+
+setWidth
+setRows
+transposestd=""
+tempstring="";
+
+currentrow=1
+
+#get num of cols
+while IFS= read -r columncoun
+do
+colcount=$columncoun
+done < stdWidth
+
+#get num of rows
+while IFS= read -r rwcount
+do
+rws=$rwcount
+done < stdHeight
+
+rowcount=1;
+strT=""; 
+
+#while read matrix 
+ while read -r m1File
+do
+currentColumnn=1
+for i in $m1File ; do
+#if on same row and col
+if [ "$currentColumnn" -eq "$currentrow" ]
+then
+echo -e "$d\\t" >> stdrowcol
+fi
+
+done
+
+#increment row and cols
+currentColumnn=$((currentColumnn+1))
+currentrow=$((currentrow+1))
+done < $datafilepath
+echo $strT >stdTemp
+
+while IFS= read -r tempLine
+do
+myLine=$tempLine
+#build up matrix
+buildTransposeOutput $myLine $rws
+done < stdTemp
+return 0
+}
+
+#build outut for transpose
+buildTransposeOutput()
+{
+curCount=1
+tempstring=""
+for i in $myLine; do
+echo $if
+tempstring+=$i
+tempstring+="\\t"
+
+#if done on row go to next line
+if [ $curCount -eq $rws ]
+then 
+tempstring+="\\n"
+curCount=0
+fi
+curCount=$((curCount +1))
+done
+printf "%b\n" $tempstring
+}
+
+#find mean of a matrix
+mean()
+{
+#one arg
+datafilepath=$1
+local cnt=0
+local sumNumber=0
+local tempStr=""
+
+#read in matrix
+while read meanline
+do
+#for each number, add to the next
+for number in $meanline; do
+sumNumber=$((sumNumber+number))
+cnt=$((cnt+1))
+done
+#find mean of row
+myMean=$(((sumNumber + (cnt/2)*( (sumNumber>0)*2-1 )) / cnt))
+tmpStr+="$myMean\t"
+
+cnt=1
+sumNumber=0
+
+done < $1
+#take of trailing whitespace
+tmpStr=${tmpStr::-2}
+printf "%b\n" $tmpStr
+return 0
+}
+
+#add 2 matrices
+add() {
+# has 2 arguments
+datafilepath=$2
+#store both matrices
+matrix1=$1
+matrix2=$2
+rowcount=0
+columncount=0
+
+setWidth
+setRows
+
+#get column count of matrix
+while IFS= read -r line
+do
+columncount=$line
+done <  stdWidth
+MyRecordRow=""
+#get first lines in each file
+matrix1line=$(head -n 1 $matrix1)
+matrix2line=$(head -n 1 $matrix2)
+
+#calls function to add rows together and myRecordRow
+addRowsTogether $1 $2 $MyRecordRow
+return 0
+}
+
+#add rows from both files together
+addRowsTogether()
+{
+#get first 2 lines of each matrix
+line=$(head -n 1 $1)
+line2=$(head -n 1 $2)
+#get count of rows, if line == rows don't add 
+while IFS= read -r lineCt
+do
+  tempStr=$lineCt
+done <  stdWidth
+
+tempValue=0
+lineNumber=1
+
+while read tempInputLine
+do
+#add nums from mat1 and mat2
+addTempRows $1 $2 $tempInputLine
+lineNumber=$((lineNumber+1))
+MyRecordRow+=$'\\n'
+done < $1
+
+#take away extra spaces
+MyRecordRow=${MyRecordRow::-2}
+
+printf "%b\n" $MyRecordRow
+}
+
+#add
+addTempRows()
+{
+local cnt=0;
+myMatrix2Row=1;
+#for num in first row
+for i in $tempInputLine; do
+cnt=$((cnt+1))
+#add nums from each matrix
+getValueOrMatrixTwo $1 $2
+done
+}
+
+#get values for result mtirx
+getValueOrMatrixTwo()
+{
+#get each line of added matrix
+myVar=$(head -"$lineNumber" $2 | tail -1)
+for t in $myVar; do
+cnts=$((cnts+1))
+#if in the same place in matrix then add those nums
+if [ $cnts = $cnt ]
+then
+#is result from adding
+tempValue=$((t+i))
+#build-up matrix
+buildRecord
+fi
+done
+tmpValue=0
+cnts=0;
+}
+
+#build result matrix
+buildRecord()
+{
+#if not end of col, build up row w/ tab
+if [ $cnt -ne $columncount ]
+then
+MyRecordRow+="${tempValue}\\t"
+fi
+#if end of col dont add tab
+if [ $cnt -eq $columncount ]
+then
+MyRecordRow+="${tempValue}"
+fi
+}
+
+#get # columns
+setWidth()
+{
+wdt=0
+#read in matrix and count the columns
+oneline=$(head -n 1 $datafilepath)
+for i in $oneline; do
+wdt=$((wdt+1))
+done
+echo $wdt > stdWidth
+}
+
+#get # rows from matrix
+setRows()
+{
+wc -l < $datafilepath > stdHeight
+}
+
+#multiply 2 matrices
+multiply() {
+#there are 2 arguments
+datafilepath=$2
+
+#params to go through both matrices and keep track of where we are
+local matrix1rowcount
+local matrix2rowcount
+local matrix1columncount
+local matrix2columncount
+local matrix1rowindex=1
+local matrix2rowindex
+local matrix1columnindex
+local matrix2columnsindex
+local matrix1datafile
+local matrix2datafile
+
+#matrix files
+matrix1datafile=$1
+matrix2datafile=$2
+
+datafilepath=$matrix2datafile
+setRows
+
+#get # of rows 2nd matrix
+while IFS= read -r matrix2rw
+do
+matrix2rowcount=$matrix2rw
+done <  stdHeight
+
+datafilepath=$matrix1datafile
+setWidth
+setRows
+matrix2columnsindex=1
+
+#get nume of cols in 1st matrix
+while IFS= read -r matrix1columncoun
+do
+matrix1columncount=$matrix1columncoun
+done <  stdWidth
+
+multiplydtdout=""
+
+while read matrix1row 
+do
+#loop through columns
+for colvalueMatrix1 in $matrix1row
+do
+#Get Value of matrix1columnindex==matrix2rowindex and matrix1rowindex==matrix1columnindex
+matrix1columnindex=$((matrix1columnindex+1))
+matrix2rowindex=$((matrix2rowindex+1))
+#grab each num at index 
+getMatrix2byIndex $matrix2datafile $matrix2rowindex $matrix2columnsindex $colvalueMatrix1
+#done looping through colums
+done
+#get rid of trailing tabs
+multiplydtdout=${multiplydtdout::-2}
+#reset vars
+matrix1columnindex=0
+matrix2rowindex=0
+matrix1rowindex=$((matrix1rowindex+1))
+
+matrix2columnsindex=$((matrix2columnsindex+1))
+#echo "current row is " $matrix1rowindex
+multiplydtdout+="\\n";
+done < $matrix1datafile #done reading files
+
+#get rid of trailing whitespace
+multiplydtdout=${multiplydtdout::-2}
+
+printf "%b\n" $multiplydtdout
+
+#row count reset
+matrix1rowindex=1
+return 0
+}
+
+#get matrix vals
+getMatrix2byIndex()
+{
+local currentColumnIndex=1
+local tempCurrentRow=1
+
+#read rows of file, when we hit matrix2 row count, display that line
+while read matrix2row 
+do
+
+if [ "$tempCurrentRow" -eq "$2" ]
+then
+for rw in $matrix2row
+do
+if [ "$currentColumnIndex" -eq "$3" ]
+then
+#value at matching row and col
+multiplydtdout+=$(($colvalueMatrix1 * rw))
+multiplydtdout+="\\t"
+fi
+#move up a col
+currentColumnIndex=$((currentColumnIndex+1))
+done
+fi
+#now change rows
+tempCurrentRow=$((tempCurrentRow+1))
+
+#add for loop to loop through coulmns on this line
+#done reading files
+done < $1
+}
+
+
+#variable for path to file with passed in contents by std/file
+datafilepath="datafile$$"
+if [ "$#" = "1" ]
+then
+    cat > "$datafilepath"
+elif [ "$#" = "2" ]
+then
+    datafilepath=$2
+fi
+
+#how specifies which function to use based on input
+if [ "$1" == "dims" ]
+then
+	#check if files given to dims are readable
+   if [ -r "$0" ] || [ -r "$2" ]; 
+    then
+        printf "%b\n" "this file is readble">stdrand
+    else
+        printf "%b\n" "Dims, No such file">stderr
+		exit 1
+    fi
+	#if arg count grter than 1 (counts function called as arg(dims))
+	if [ "$#" -gt "2" ]
+	then
+	printf "%b\n" "Too many arguments, enter only 1" > stderr
+	exit 1
+	else
+dims $1
+fi
+
+#echo "num of args $#"
+
+elif [ "$1" == "transpose" ]
+then
+	#check if matrix files given for transpose are readable	
+   if [ -r "$0" ] || [ -r "$2" ]; 
+    then
+        printf "%b\n" "this file is readble">stdrand
+    else
+        printf "%b\n" "Transpose, No such file">stderr
+		exit 1
+    fi
+	#if arg count grter than 1 (counts function called as arg(transpose))
+	if [ "$#" -gt "2" ]
+	then
+	printf "%b\n" "Too many arguments, enter only 1" > stderr
+	exit 1
+	else
+transpose $2
+fi
+
+elif [ "$1" == "mean" ]
+then
+	#check if file given to mean are readable
+   if [ -r "$0" ] || [ -r "$2" ]; 
+    then
+        printf "%b\n" "this file is readble">stdrand
+    else
+        printf "%b\n" "mean, No such file">stderr
+		exit 1
+    fi
+	#if arg count grter than 1 (counts function called as arg(mean))
+	if [ "$#" -gt "2" ]
+	then
+	printf "%b\n" "Too many arguments, enter only 1" > stderr
+	exit 1
+	else
+mean $2
+fi
+
+elif [ "$1" == "add" ]
+then
+	#check if matrices entered are readable
+	if [ -r "$0" ] || [ -r "$2" ] [ -r "$3" ]; 
+    then
+        printf "%s" "this file is readble">stdrand
+    else
+        printf "%s" "add, No such file">stderr
+		exit 1
+    fi
+	#if arg not equal to 2 (counts function called as arg(add))
+	if [ "$#" -ne "3" ]
+	then
+	printf "%b\n" "Too many arguments, enter only 1" > stderr
+	exit 1
+	else
+add $2 $3
+fi
+
+elif [ "$1" == "multiply" ]
+then
+	#check if matrices entered are readable
+	if [ -r "$0" ] || [ -r "$2" ] [ -r "$3" ]; 
+    then
+        printf "%s" "this file is readble">stdrand
+    else
+        printf "%s" "multiply, No such file">stderr
+		exit 1
+    fi
+	#if arg not equal to 2 (counts function called as arg(multiply))
+	if [ "$#" -ne "3" ]
+	then
+	printf "%b\n" "Too many arguments, enter only 1" > stderr
+	exit 1
+	else
+multiply $2 $3
+fi
+fi 
